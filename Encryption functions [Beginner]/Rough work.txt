@@ -1,0 +1,206 @@
+THE PERFECTLY WORKING FINAL DRAFT 
+
+
+
+import random
+
+# Global vars
+key1 = 0
+key2 = 0
+
+# THE HERO CLASS for all CIPHERS
+class Ciphers:
+    conv = []
+    strr = ''
+
+    def __init__(self, ch, *k):
+        self.ch = ch
+        self.k = k
+
+    @staticmethod
+    def nrm_key_gen():
+        return random.randint(1, 25)
+
+    @staticmethod
+    def constraint_key_gen():
+        keysset = [1, 3, 5, 7, 9, 11, 15, 17, 19, 21, 23, 25]
+        return random.choice(keysset)
+
+
+    def pre_enc(self):
+        self.conv = [ord(i.lower()) - ord('a') for i in self.ch if i.isalpha()]
+        return self.conv
+
+    def post_dec(self, uncon):
+        self.strr = ''.join([chr(ord('a') + i) for i in uncon])
+        return self.strr
+
+    def mod_inv(self, k, m=26): #needed to calc the modular inverse of a number under dec of affine cipher
+        def euclid_algo(a, b):
+            if b == 0:
+                return a, 1, 0
+            gcd, x1, y1 = euclid_algo(b, a % b)
+            x, y = y1, x1 - (a // b) * y1
+            return gcd, x, y
+        gcd, x, _ = euclid_algo(k, m) #ignoring y , as thts not needed for the calulations
+        if gcd != 1:
+           raise ValueError(f"Key {k} is not invertible modulo {m}. Choose a different key.")
+        return x % m
+
+    def key_conv(self, ky):
+        return format(ky, '08b')
+
+    @classmethod
+    def clearall(cls):
+        cls.conv = []
+        cls.strr = ''
+
+# CLASS FOR ENC-TYPE1
+class Caesar(Ciphers):
+    def __init__(self, chr, ky):
+        super().__init__(chr, ky)
+        self.un = self.pre_enc()
+        self.ky = ky
+
+    def adkvl(self):
+        return [(self.ky + i) % 26 for i in self.un]
+
+    def subkvl(self, dcn):
+        return [(i - self.ky) % 26 for i in dcn]
+
+# CLASS FOR ENC-TYPE2
+class Affine(Ciphers):
+    def __init__(self, chr, key1, key2):
+        super().__init__(chr, key1)
+        self.un = self.pre_enc()
+        self.ky1 = key1
+        self.ky2 = key2
+        self.mul_inv = super().mod_inv(self.ky1)
+
+    def adkvl(self):
+        return [((self.ky1 * i) + self.ky2) % 26 for i in self.un]
+
+    def subkvl(self, dcn):
+        return [(self.mul_inv * (i - self.ky2)) % 26 for i in dcn]
+
+# CLASS FOR ENC-TYPE3
+class Vernam(Ciphers):
+    def __init__(self, chr, bk):
+        super().__init__(chr, key1)
+        self.chr = chr
+        self.bk = bk
+
+    def bi_con1(self):
+        return ''.join(format(ord(i), '08b') for i in self.chr)
+
+    def adkvl(self, bi_txt):
+        mx = max(len(bi_txt), len(self.bk))
+        repeated_key = (self.bk * ((mx // len(self.bk)) + 1))[:mx]
+        return ''.join('1' if b1 != b2 else '0' for b1, b2 in zip(bi_txt, repeated_key))
+
+    def bi_con2(self, xor, ll):
+        con0 = [xor[i:i+8] for i in range(0, ll, 8)]
+        return ''.join(chr(int(b, 2)) for b in con0)
+
+# Collected enc-typ 1 ops...
+def c_cipher(plnt, key1):
+    e1 = Caesar(plnt, key1)
+    encon = e1.adkvl()
+    ct = e1.post_dec(encon)
+    print(f"Cipher Text ===> {ct}\n")
+    Ciphers.clearall()
+
+# Collected dec-typ 1 ops...
+def dec_c_cipher(plnt, key1):
+    e1 = Caesar(plnt, key1)
+    encon = e1.subkvl(e1.un)
+    ct = e1.post_dec(encon)
+    print(f"Plain Text ===> {ct}\n")
+    Ciphers.clearall()
+
+# Collected enc-typ 2 ops...
+def a_cipher(plnt, key1, key2):
+    e2 = Affine(plnt, key1, key2)
+    encon = e2.adkvl()
+    ct = e2.post_dec(encon)
+    print(f"Cipher Text ===> {ct}\n")
+    Ciphers.clearall()
+
+# Collected dec-typ 2 ops...
+def dec_a_cipher(plnt, key1, key2):
+    e2 = Affine(plnt, key1, key2)
+    encon = e2.subkvl(e2.un)
+    ct = e2.post_dec(encon)
+    print(f"Plain Text ===> {ct}\n")
+    Ciphers.clearall()
+
+# Collected enc-typ 3 ops...
+def v_cipher(plnt, bk):
+    e3 = Vernam(plnt, bk)
+    bi_txt = e3.bi_con1()
+    xor = e3.adkvl(bi_txt)
+    ct = e3.bi_con2(xor, len(xor))
+    print(f"Cipher Text ===> {ct}\n")
+    Ciphers.clearall()
+
+# Collected dec-typ 3 ops...
+def dec_v_cipher(plnt, bk):
+    e3 = Vernam(plnt, bk)
+    bi_txt = e3.bi_con1()
+    xor = e3.adkvl(bi_txt)
+    ct = e3.bi_con2(xor, len(xor))
+    print(f"Plain Text ===> {ct}\n")
+    Ciphers.clearall()
+
+# MAIN<>
+
+print("\n============== WELCOME TO IR's CYPHER ZONE  ===============")
+c1=Ciphers("I'm the head")
+while True:
+    print("\nSELECT THE TYPE OF ENCRYPTION/DECRYPTION ALGORITHM:")
+    print("TO ENCRYPT SELECT:\n   1. CAESAR CIPHER\n   2. AFFINE CIPHER\n   3. VERNAM CIPHER\nTO DECRYPT SELECT:\n   4. CAESAR CIPHER\n   5. AFFINE CIPHER\n   6. VERNAM CIPHER")
+    print("7. EXIT THE APPLICATION\n")
+
+    type = int(input("Enter your choice: "))
+
+    if type == 7:
+        print("\n IR's CYPHER ZONE EXITED. Stay encrypted, Stay Safe! \n")
+        break
+    elif type>7:
+        print("Invalid choice! Please select a valid option.\n")
+        break
+        
+
+    print("\nENTER YOUR TEXT:  ")
+    plntxt = input()
+    print("\nENTER YOUR KEY OR SELECT '0' FOR RANDOM KEY GENERATION: ")
+    key1 = int(input())
+    if key1 == 0:
+        key1 = Ciphers.nrm_key_gen()
+
+    match type:
+        case 1:
+            print(f"Secret key --->  {key1} \n")
+            c_cipher(plntxt, key1)
+        case 2:
+            key2 = int(input("Enter second key or 0 for random key generation: "))
+            if key2 == 0:
+                key2 = c1.constraint_key_gen()
+            print(f"Secret keys --->  {key1} , {key2} \n ")
+            a_cipher(plntxt, key1, key2)
+        case 3:
+            bk = c1.key_conv(key1)
+            print(f"Secret key --->  {key1}  Binary value ===> {bk} \n")
+            v_cipher(plntxt, bk)
+        case 4:
+            dec_c_cipher(plntxt, key1)
+        case 5:
+            key2 = int(input("Enter second key: "))
+            dec_a_cipher(plntxt, key1, key2)
+        case 6:
+            bk = c1.key_conv(key1)   
+            dec_v_cipher(plntxt, bk) 
+        case _:
+            print("Invalid choice! Please select a valid option.\n")
+
+# completed here // fully working // Hats off IR!!            
